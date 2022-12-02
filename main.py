@@ -45,6 +45,7 @@ labels = ['Right_Scissors',
           'Left_Forceps',
           'Right_Empty',
           'Left_Empty']
+
 idx_to_label = {i: inst for i, inst in zip(range(len(labels)), labels)}
 class_appearance = {i: 0 for i in range(len(labels))}
 
@@ -54,7 +55,8 @@ cap = cv2.VideoCapture('videos/P022_balloon1.wmv')
 if not cap.isOpened():
     print("Error opening video stream or file")
 
-running_average = {}
+left_running_average = {}
+right_running_average = {}
 
 # Read until video is completed
 i = 0
@@ -69,12 +71,25 @@ while cap.isOpened():
         frame_res = model(frame)
         bbox = frame_res.pandas().xyxy[0][['xmin', 'ymin', 'xmax', "ymax"]].astype(int).values.tolist()
         classes = frame_res.pandas().xyxy[0][['confidence', 'name']].values.tolist()
-        classes = [f"Class:{label}, Conf: {conf}" for conf, label in classes]
+        classes = [f"Class:{label}, Conf: {round(conf, 2)}" for conf, label in classes]
         frame = frame_res.render()[0]
-        bbox_labels = [[xmin - 50, ymin, xmax, ymax] for xmin, ymin, xmax, ymax in bbox]
-        frame = bbv.add_multiple_labels(frame, classes, bbox, text_bg_color=(0, 255, 0))
+        bbox_labels = [[xmin - 150, ymin, xmax-150, ymax] for xmin, ymin, xmax, ymax in bbox]
+        frame = bbv.add_multiple_labels(frame, classes, bbox_labels, text_bg_color=(0, 255, 0))
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        # org
+        org = (50, 50)
+        # fontScale
+        fontScale = 1
+        # Blue color in BGR
+        color = (255, 0, 0)
+        # Line thickness of 2 px
+        thickness = 2
+        # Using cv2.putText() method
+        image = cv2.putText(frame, 'OpenCV', org, font, fontScale, color, thickness, cv2.LINE_AA)
+
+        # Displaying the image
         # Display the resulting frame
         cv2.imshow('Frame', frame)
 
@@ -91,3 +106,22 @@ cap.release()
 
 # Closes all the frames
 cv2.destroyAllWindows()
+
+# font
+# font = cv2.FONT_HERSHEY_SIMPLEX
+#
+# # org
+# org = (50, 50) #It is the coordinates of the bottom-left corner of the text string in the image. The coordinates are represented as tuples of two values i.e. (X coordinate value, Y coordinate value).
+#
+# # fontScale
+# fontScale = 1 #Font scale factor that is multiplied by the font-specific base size.
+#
+# # Blue color in BGR
+# color = (255, 0, 0)
+#
+# # Line thickness of 2 px
+# thickness = 2
+# text_to_print =
+# # Using cv2.putText() method
+# image = cv2.putText(image, text_to_print, org, font,
+#                     fontScale, color, thickness, cv2.LINE_AA)
