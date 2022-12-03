@@ -6,13 +6,17 @@ import cv2
 import matplotlib.pyplot as plt
 import os
 import numpy as np
+from tqdm import tqdm
 
 model = torch.hub.load('yolov5', 'custom', path='yolov5/best.pt', source='local')
-model.max_det = 8  # maximum number of detections per image
+model.max_det = 2  # maximum number of detections per image
 model.amp = True  # Automatic Mixed Precision (AMP) inference
 
 with open("datasets/train.txt") as f:
     train_files = ["datasets/images/" + line.strip() for line in f.readlines()]
+
+with open("datasets/train.txt") as f:
+    train_labels = ["datasets/labels/" + line.strip() for line in f.readlines()]
 
 with open("datasets/valid.txt") as f:
     valid_files = ["datasets/images/" + line.strip() for line in f.readlines()]
@@ -55,8 +59,8 @@ cap = cv2.VideoCapture('videos/P022_balloon1.wmv')
 if not cap.isOpened():
     print("Error opening video stream or file")
 
-left_running_average = {}
-right_running_average = {}
+left_running_average = []
+right_running_average = []
 
 # Read until video is completed
 i = 0
@@ -69,28 +73,23 @@ while cap.isOpened():
         # bbox = [xmin, ymin, xmax, ymax]
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         frame_res = model(frame)
+
         bbox = frame_res.pandas().xyxy[0][['xmin', 'ymin', 'xmax', "ymax"]].astype(int).values.tolist()
         classes = frame_res.pandas().xyxy[0][['confidence', 'name']].values.tolist()
-        classes = [f"Class:{label}, Conf: {round(conf, 2)}" for conf, label in classes]
-        frame = frame_res.render()[0]
-        bbox_labels = [[xmin - 150, ymin, xmax-150, ymax] for xmin, ymin, xmax, ymax in bbox]
-        frame = bbv.add_multiple_labels(frame, classes, bbox_labels, text_bg_color=(0, 255, 0))
+        classes = [f"{label}, {round(conf, 2)}" for conf, label in classes]
+        frame = bbv.draw_multiple_rectangles(frame, bbox, bbox_color=(0, 255, 0))
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        for i, (x, y, w, h) in enumerate(bbox):
+            org = (x - 10, y - 10)
+            color = (255, 0, 0)
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            thickness = 1
+            fontScale = 0.5
+            image = cv2.putText(frame, classes[i], org, font, fontScale, color, thickness, cv2.LINE_AA)
 
         font = cv2.FONT_HERSHEY_SIMPLEX
-        # org
         org = (50, 50)
-        # fontScale
-        fontScale = 1
-        # Blue color in BGR
-        color = (255, 0, 0)
-        # Line thickness of 2 px
-        thickness = 2
-        # Using cv2.putText() method
         image = cv2.putText(frame, 'OpenCV', org, font, fontScale, color, thickness, cv2.LINE_AA)
-
-        # Displaying the image
-        # Display the resulting frame
         cv2.imshow('Frame', frame)
 
         # Press Q on keyboard to  exit
