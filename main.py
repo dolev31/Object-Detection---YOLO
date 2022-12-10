@@ -8,6 +8,7 @@ import os
 import numpy as np
 from tqdm import tqdm
 from pprint import pprint
+from sklearn.metrics import f1_score, recall_score, precision_score, precision_recall_fscore_support
 
 
 def draw_text(img, text,
@@ -61,6 +62,8 @@ labels = ['Right_Scissors',
           'Left_Empty']
 
 idx_to_label = {i: inst for i, inst in zip(range(len(labels)), labels)}
+label_to_idx = {inst: i for i, inst in zip(range(len(labels)), labels)}
+
 class_appearance = {i: 0 for i in range(len(labels))}
 
 from os import listdir
@@ -173,30 +176,40 @@ for vid in videos:
             thickness = 1
             fontScale = 0.5
             org = (10, 15)
-            gt_text = f"Ground truth {final_predictions['Right_gt'][-1]} and {final_predictions['Left_gt'][-1]}"
-            pred_text = f"Prediction {final_predictions['Right_pred_after'][-1]} and {final_predictions['Left_pred_after'][-1]}"
+            gt_text = f"Ground truth: {final_predictions['Right_gt'][-1]} and {final_predictions['Left_gt'][-1]}"
+            pred_text = f"Prediction: {final_predictions['Right_pred_after'][-1]} and {final_predictions['Left_pred_after'][-1]}"
 
             draw_text(frame, gt_text, pos=(10, 15), font_scale=1, font_thickness=thickness)
             draw_text(frame, pred_text, pos=(10, 30), font_scale=1, font_thickness=thickness)
 
-            # image = cv2.putText(frame, gt_text, org, font, fontScale, color,
-            #                     thickness, cv2.LINE_AA)
-            # image = cv2.putText(frame, gt_text, (10, 30), font, fontScale, color,
-            #                     thickness, cv2.LINE_AA)
             cv2.imshow('Frame', frame)
 
-            # Press Q on keyboard to  exit
             if cv2.waitKey(33) & 0xFF == ord('q'):
                 break
-        # Break the loop
         else:
             break
-        pprint(final_predictions)
 
-    # When everything done, release the video capture object
     cap.release()
 
     # Closes all the frames
     cv2.destroyAllWindows()
+    left_gt = [label_to_idx[label] for label in final_predictions['Left_gt']]
+    right_gt = [label_to_idx[label] for label in final_predictions['Right_gt']]
+    left_before = [label_to_idx[label] for label in final_predictions['Left_pred_before']]
+    right_before = [label_to_idx[label] for label in final_predictions['Right_pred_before']]
+    left_after = [label_to_idx[label] for label in final_predictions['Left_pred_after']]
+    right_after = [label_to_idx[label] for label in final_predictions['Right_pred_after']]
 
+    print("Right predictions")
+    precision, recall, fscore, _ = precision_recall_fscore_support(right_gt, right_before)
+    print(f"\tPrecision before smoothing: {precision}")
+    print(f"\tRecall before smoothing: {recall}")
+    print(f"\tF1 before smoothing: {fscore}")
+    print()
+    print("Left predictions")
+    precision, recall, fscore, _ = precision_recall_fscore_support(left_gt, left_after)
+    print(f"\tPrecision after smoothing: {precision}")
+    print(f"\tRecall after smoothing: {recall}")
+    print(f"\tF1 after smoothing: {fscore}")
 
+    ofek = 5
