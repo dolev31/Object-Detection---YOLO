@@ -4,6 +4,7 @@ import torch
 import bbox_visualizer as bbv
 import cv2
 from tqdm import tqdm
+
 with open("datasets/train.txt") as f:
     train_files = ["datasets/images/" + line.strip() for line in f.readlines()]
 
@@ -15,7 +16,9 @@ switch = {i: i + 1 if i % 2 == 0 else i - 1 for i in range(8)}
 for image in tqdm(train_files):
     try:
         originalImage = cv2.imread(image)
+        cv2.imshow("bla", originalImage)
         flipHorizontal = cv2.flip(originalImage, 1)
+        cv2.imshow("bla2", flipHorizontal)
         cv2.imwrite(image.replace(".jpg", "_flipped.jpg"), flipHorizontal)
         labels = open(image.replace(".jpg", ".txt").replace("images", 'labels')).readlines()
         new_labels = [line.split(" ") for line in labels]
@@ -32,7 +35,7 @@ for image in tqdm(train_files):
             to_replace.append(" ".join([label, x, y, w, h]))
             with open(image.replace(".jpg", "_flipped.txt").replace("images", 'labels'), 'w') as f:
                 for line in to_replace:
-                    f.write(f"{line}\n")
+                    f.write(line)
     except Exception as e:
         print(e)
         continue
