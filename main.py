@@ -1,5 +1,7 @@
 from os import listdir
 from os.path import isfile, join
+
+import pandas as pd
 import torch
 import bbox_visualizer as bbv
 import cv2
@@ -8,7 +10,7 @@ import os
 import numpy as np
 from tqdm import tqdm
 from pprint import pprint
-from sklearn.metrics import f1_score, recall_score, precision_score, precision_recall_fscore_support
+from sklearn.metrics import precision_recall_fscore_support
 
 
 def draw_text(img, text,
@@ -28,28 +30,28 @@ def draw_text(img, text,
     return text_size
 
 
-model = torch.hub.load('yolov5', 'custom', path='yolov5/best.pt', source='local')
+answer = "Yes" if torch.cuda.is_available() else "No"
+print(f"CUDA available?: {answer}")
+model = torch.hub.load('yolov5', 'custom', path='yolov5/runs/train/exp11/weights/best.pt', source='local')
+model.cuda()
 model.max_det = 2  # maximum number of detections per image
 model.amp = True  # Automatic Mixed Precision (AMP) inference
 
-with open("datasets/train.txt") as f:
-    train_files = ["datasets/images/" + line.strip() for line in f.readlines()]
-
-with open("datasets/train.txt") as f:
-    train_labels = ["datasets/labels/" + line.strip() for line in f.readlines()]
-
-with open("datasets/valid.txt") as f:
-    valid_files = ["datasets/images/" + line.strip() for line in f.readlines()]
-
-with open("datasets/test.txt") as f:
-    test_files = ["datasets/images/" + line.strip() for line in f.readlines()]
-
-tools_right = [f for f in listdir("datasets/tool_usage/tools_right") if
-               isfile(join("datasets/tool_usage/tools_right", f))]
-tools_left = [f for f in listdir("datasets/tool_usage/tools_left") if isfile(join("datasets/tool_usage/tools_left", f))]
-
-## https://learnopencv.com/read-write-and-display-a-video-using-opencv-cpp-python/      ## basic opencv tutorial
-## https://github.com/shoumikchow/bbox-visualizer  ## bbox_visualizer git with examples
+# with open("datasets/train.txt") as f:
+#     train_files = ["datasets/images/" + line.strip() for line in f.readlines()]
+#
+# with open("datasets/train.txt") as f:
+#     train_labels = ["datasets/labels/" + line.strip() for line in f.readlines()]
+#
+# with open("datasets/valid.txt") as f:
+#     valid_files = ["datasets/images/" + line.strip() for line in f.readlines()]
+#
+# with open("datasets/test.txt") as f:
+#     test_files = ["datasets/images/" + line.strip() for line in f.readlines()]
+#
+# tools_right = [f for f in listdir("datasets/tool_usage/tools_right") if
+#                isfile(join("datasets/tool_usage/tools_right", f))]
+# tools_left = [f for f in listdir("datasets/tool_usage/tools_left") if isfile(join("datasets/tool_usage/tools_left", f))]
 
 
 labels = ['Right_Scissors',
@@ -59,11 +61,12 @@ labels = ['Right_Scissors',
           'Right_Forceps',
           'Left_Forceps',
           'Right_Empty',
-          'Left_Empty']
+          'Left_Empty',
+          '0']
 
 idx_to_label = {i: inst for i, inst in zip(range(len(labels)), labels)}
 label_to_idx = {inst: i for i, inst in zip(range(len(labels)), labels)}
-
+label_to_idx['0'] = -1
 class_appearance = {i: 0 for i in range(len(labels))}
 
 from os import listdir
@@ -84,13 +87,18 @@ tool_usage_right = {v: k for k, v in tool_usage_right.items()}
 tool_usage_left = {v: k for k, v in tool_usage_left.items()}
 
 for vid in videos:
+    vid_name = vid.split(".")[0]
+    print(f"Labeling vidoe: {vid_name}")
+    fourcc = cv2.VideoWriter_fourcc('m', 'p', '4', 'v')
+    out = cv2.VideoWriter("videos/" + vid_name + "_labeled.wmv", fourcc, 30.0, (640, 480))
+    try:
+        with open(f"videos/tools_right/{vid.split('.')[0]}.txt", "r") as f:
+            vid_right_labels = [line.split(" ") for line in f.readlines()]
 
-    with open(f"videos/tools_right/{vid.split('.')[0]}.txt", "r") as f:
-        vid_right_labels = [line.split(" ") for line in f.readlines()]
-
-    with open(f"videos/tools_left/{vid.split('.')[0]}.txt", "r") as f:
-        vid_left_labels = [line.split(" ") for line in f.readlines()]
-
+        with open(f"videos/tools_left/{vid.split('.')[0]}.txt", "r") as f:
+            vid_left_labels = [line.split(" ") for line in f.readlines()]
+    except Exception:
+        continue
     cap = cv2.VideoCapture("videos/" + vid)
 
     if not cap.isOpened():
@@ -99,7 +107,7 @@ for vid in videos:
     left_running_average = []
     right_running_average = []
 
-    window_span = 5
+    window_span = 10
     final_predictions = {"Left_pred_after": [], "Right_pred_after": [], "Left_gt": [], "Right_gt": [],
                          "Right_pred_before": [],
                          "Left_pred_before": []}
@@ -115,10 +123,16 @@ for vid in videos:
             classes = frame_res.pandas().xyxy[0][['confidence', 'name']].values.tolist()
             results = frame_res.pandas().xyxy[0]
             before_labels = [bla[1] for bla in enumerate(classes)]
-            final_predictions['Right_pred_before'].append(
-                [rlabel[1] for rlabel in before_labels if "Right" in rlabel[1]][0])
-            final_predictions['Left_pred_before'].append(
-                [rlabel[1] for rlabel in before_labels if "Left" in rlabel[1]][0])
+            try:
+                final_predictions['Right_pred_before'].append(
+                    [rlabel[1] for rlabel in before_labels if "Right" in rlabel[1]][0])
+            except Exception:
+                final_predictions['Right_pred_before'].append('0')
+            try:
+                final_predictions['Left_pred_before'].append(
+                    [rlabel[1] for rlabel in before_labels if "Left" in rlabel[1]][0])
+            except Exception:
+                final_predictions['Left_pred_before'].append('0')
 
             if len(results) == 0:
                 right_running_average.append('0')
@@ -126,7 +140,7 @@ for vid in videos:
                 right_box = -1
                 left_box = 0
             elif len(results) == 1:
-                pred = results['name']
+                pred = results['name'].iloc[0]
                 if 'Right' in pred:
                     right_running_average.append(pred)
                     left_running_average.append('0')
@@ -181,35 +195,90 @@ for vid in videos:
 
             draw_text(frame, gt_text, pos=(10, 15), font_scale=1, font_thickness=thickness)
             draw_text(frame, pred_text, pos=(10, 30), font_scale=1, font_thickness=thickness)
-
-            cv2.imshow('Frame', frame)
-
-            if cv2.waitKey(33) & 0xFF == ord('q'):
-                break
+            out.write(frame)
+            # if i == 500:
+            #     break
+            # if cv2.waitKey(33) & 0xFF == ord('q'):
+            #     print("waiting")
+            #     break
         else:
+            # print("Im here")
             break
 
     cap.release()
-
+    out.release()
     # Closes all the frames
-    cv2.destroyAllWindows()
-    left_gt = [label_to_idx[label] for label in final_predictions['Left_gt']]
-    right_gt = [label_to_idx[label] for label in final_predictions['Right_gt']]
-    left_before = [label_to_idx[label] for label in final_predictions['Left_pred_before']]
-    right_before = [label_to_idx[label] for label in final_predictions['Right_pred_before']]
-    left_after = [label_to_idx[label] for label in final_predictions['Left_pred_after']]
-    right_after = [label_to_idx[label] for label in final_predictions['Right_pred_after']]
+    # cv2.destroyAllWindows()
+    # left_gt = [label_to_idx[label] for label in final_predictions['Left_gt']]
+    # right_gt = [label_to_idx[label] for label in final_predictions['Right_gt']]
+    # left_before = [label_to_idx[label] for label in final_predictions['Left_pred_before']]
+    # right_before = [label_to_idx[label] for label in final_predictions['Right_pred_before']]
+    # left_after = [label_to_idx[label] for label in final_predictions['Left_pred_after']]
+    # right_after = [label_to_idx[label] for label in final_predictions['Right_pred_after']]
+    print(vid_name + " Predictions:")
+    print("\tRight predictions")
+    precision, recall, fscore, _ = precision_recall_fscore_support(final_predictions['Right_gt'],
+                                                                   final_predictions['Right_pred_before'],
+                                                                   labels=labels, average=None)
+    precision = pd.DataFrame(precision.reshape(1, -1), columns=labels)
+    precision.to_csv("precision_right_before.csv")
+    recall = pd.DataFrame(recall.reshape(1, -1), columns=labels)
+    recall.to_csv("recall_right_before.csv")
+    fscore = pd.DataFrame(fscore.reshape(1, -1), columns=labels)
+    fscore.to_csv("f1_right_before.csv")
 
-    print("Right predictions")
-    precision, recall, fscore, _ = precision_recall_fscore_support(right_gt, right_before)
-    print(f"\tPrecision before smoothing: {precision}")
-    print(f"\tRecall before smoothing: {recall}")
-    print(f"\tF1 before smoothing: {fscore}")
+    print(f"\t\tPrecision before smoothing: {precision}")
+    print("############################################")
+    print(f"\t\tRecall before smoothing: {recall}")
+    print("############################################")
+    print(f"\t\tF1 before smoothing: {fscore}")
+    print("############################################")
     print()
-    print("Left predictions")
-    precision, recall, fscore, _ = precision_recall_fscore_support(left_gt, left_after)
-    print(f"\tPrecision after smoothing: {precision}")
-    print(f"\tRecall after smoothing: {recall}")
-    print(f"\tF1 after smoothing: {fscore}")
-
-    ofek = 5
+    precision, recall, fscore, _ = precision_recall_fscore_support(final_predictions['Right_gt'],
+                                                                   final_predictions['Right_pred_after'],
+                                                                   labels=labels, average=None)
+    precision = pd.DataFrame(precision.reshape(1, -1), columns=labels)
+    precision.to_csv("precision_right_after.csv")
+    recall = pd.DataFrame(recall.reshape(1, -1), columns=labels)
+    recall.to_csv("recall_right_after.csv")
+    fscore = pd.DataFrame(fscore.reshape(1, -1), columns=labels)
+    fscore.to_csv("f1_right_after.csv")
+    print(f"\t\tPrecision after smoothing: {precision}")
+    print("############################################")
+    print(f"\t\tRecall after smoothing: {recall}")
+    print("############################################")
+    print(f"\t\tF1 after smoothing: {fscore}")
+    print("############################################")
+    print()
+    print("\tLeft predictions")
+    precision, recall, fscore, _ = precision_recall_fscore_support(final_predictions['Left_gt'],
+                                                                   final_predictions['Left_pred_before'],
+                                                                   labels=labels, average=None)
+    precision = pd.DataFrame(precision.reshape(1, -1), columns=labels)
+    precision.to_csv("precision_left_before.csv")
+    recall = pd.DataFrame(recall.reshape(1, -1), columns=labels)
+    recall.to_csv("recall_left_before.csv")
+    fscore = pd.DataFrame(fscore.reshape(1, -1), columns=labels)
+    fscore.to_csv("f1_left_before.csv")
+    print(f"\t\tPrecision before smoothing: {precision}")
+    print("############################################")
+    print(f"\t\tRecall before smoothing: {recall}")
+    print("############################################")
+    print(f"\t\tF1 before smoothing: {fscore}")
+    print("############################################")
+    print()
+    precision, recall, fscore, _ = precision_recall_fscore_support(final_predictions['Left_gt'],
+                                                                   final_predictions['Left_pred_after'],
+                                                                   labels=labels, average=None)
+    precision = pd.DataFrame(precision.reshape(1, -1), columns=labels)
+    precision.to_csv("precision_left_after.csv")
+    recall = pd.DataFrame(recall.reshape(1, -1), columns=labels)
+    recall.to_csv("recall_left_after.csv")
+    fscore = pd.DataFrame(fscore.reshape(1, -1), columns=labels)
+    fscore.to_csv("f1_left_after.csv")
+    print(f"\t\tPrecision after smoothing: {precision}")
+    print("############################################")
+    print(f"\t\tRecall after smoothing: {recall}")
+    print("############################################")
+    print(f"\t\tF1 after smoothing: {fscore}")
+    print("############################################")
