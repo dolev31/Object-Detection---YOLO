@@ -6,11 +6,11 @@ Model validation metrics
 import math
 import warnings
 from pathlib import Path
-
+import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-import pandas as pd
+
 from utils import TryExcept, threaded
 
 
@@ -92,10 +92,11 @@ def ap_per_class(tp, conf, pred_cls, target_cls, plot=False, save_dir='.', names
     p, r, f1 = p[:, i], r[:, i], f1[:, i]
     tp = (r * nt).round()  # true positives
     fp = (tp / (p + eps) - tp).round()  # false positives
-
+    # Delete if training
     ap_df = pd.DataFrame(data=ap, columns=["mAP@25", "mAP@50", "mAP@75"]).reset_index()
     ap_df["name"] = ap_df["index"].map(names)
     ap_df.to_csv("results.csv")
+
     return tp, fp, p, r, f1, ap, unique_classes.astype(int)
 
 
