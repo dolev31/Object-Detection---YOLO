@@ -30,10 +30,8 @@ code blocks for commands
 ```
 
 ## Authors
-
-Contributors names and contact info
-[@Ido Levi](https://github.com/dolev31)
-[@Daniel Yehezkel](https://github.com/daniel-yehezkel)
+* [@Ido Levi](https://github.com/dolev31)
+* [@Daniel Yehezkel](https://github.com/daniel-yehezkel)
 
 ## Version History
 * 0.1
