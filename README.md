@@ -16,17 +16,17 @@ An in-depth paragraph about your project and overview of use.
 
 * Segmenting a video
 ```
-code blocks for commands
+python video.py --video_file_name videos\[your_video_name] --model_path models\[your_model_name]
 ```
 
 * Segmenting a video with evaluation
 ```
-code blocks for commands
+python video.py --video_file_name videos\[your_video_name] --model_path models\[your_model_name] --video_labels_path [path_to_label_dir]
 ```
 
-* Step-by-step bullets
+* Segmenting an image
 ```
-code blocks for commands
+python predict.py --image_file_name images\[your_video_name] --model_path models\[your_model_name]
 ```
 
 ## Authors
