@@ -157,4 +157,4 @@ def main():
 
 
 if __name__ == "__main__":
-    label_five_videos()
+    main()
