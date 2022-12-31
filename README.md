@@ -2,10 +2,6 @@
 
 This repo contains an easy-to-use model for detecting & segmenting tools in both hans of a suturing simulator.  
 
-## Description
-
-An in-depth paragraph about your project and overview of use.
-
 ## Getting Started
 
 ### Dependencies
