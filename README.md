@@ -1,4 +1,4 @@
-# Tool Detection & Segmentation In Surgical Room via Yolo5
+# Tool Detection & Segmentation In Surgical Room via YOLO5
 
 This repo contains an easy-to-use model for detecting & segmenting tools in both hans of a suturing simulator.  
 
