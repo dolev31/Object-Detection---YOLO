@@ -135,7 +135,7 @@ def label_five_videos():
         'P026_tissue1.wmv'
     ]
 
-    model_path = 'models/new_new_best.pt'
+    model_path = 'models/best.pt'
     video_labels_path = "datasets/HW1_dataset/tool_usage"
 
     for video_file_name in video_file_names:
@@ -157,4 +157,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    label_five_videos()
