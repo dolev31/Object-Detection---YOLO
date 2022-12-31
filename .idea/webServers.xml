@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="4f5e6edc-45ae-4628-bfe8-b7fd719a1480" name="cv-server">
+        <fileTransfer accessType="SFTP" host="cvsa2022w-0002.westus.cloudapp.azure.com" port="22" sshConfigId="014eb08b-0799-4d54-8f71-7ee58789c342" sshConfig="student@cvsa2022w-0002.westus.cloudapp.azure.com:22 password">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>
